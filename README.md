@@ -295,6 +295,7 @@ AVAILABLE ───────► CANCELLED
 ------------------------------------------------------------------------
 
 # 🏗️ Architecture
+![RescueLink Architecture](assets/architecture.png)
 
 ``` text
                          ┌──────────────────┐
