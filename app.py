@@ -24,7 +24,6 @@ st.set_page_config(
 # ============================================================
 
 AWS_REGION = "ap-south-2"
-
 LOCATION_REGION = "ap-south-1"
 
 COGNITO_USER_POOL_ID = "ap-south-2_mt0ZbL7A3"
@@ -41,13 +40,8 @@ API_BASE_URL = (
 # ============================================================
 
 try:
-
-    LOCATION_API_KEY = st.secrets[
-        "AWS_LOCATION_API_KEY"
-    ]
-
+    LOCATION_API_KEY = st.secrets["AWS_LOCATION_API_KEY"]
 except Exception:
-
     LOCATION_API_KEY = ""
 
 
@@ -66,33 +60,20 @@ cognito = boto3.client(
 # ============================================================
 
 default_session_values = {
-
     "logged_in": False,
-
     "id_token": None,
-
     "access_token": None,
-
     "refresh_token": None,
-
     "user_role": None,
-
     "user_id": None,
-
     "user_email": None,
-
     "challenge_name": None,
-
     "challenge_session": None,
-
     "challenge_username": None
 }
 
-
 for key, value in default_session_values.items():
-
     if key not in st.session_state:
-
         st.session_state[key] = value
 
 
@@ -105,20 +86,16 @@ def decode_jwt_payload(token):
     try:
 
         if not token:
-
             return {}
 
         parts = token.split(".")
 
         if len(parts) != 3:
-
             return {}
 
         payload = parts[1]
 
-        padding = "=" * (
-            -len(payload) % 4
-        )
+        padding = "=" * (-len(payload) % 4)
 
         decoded = base64.urlsafe_b64decode(
             payload + padding
@@ -129,7 +106,6 @@ def decode_jwt_payload(token):
         )
 
     except Exception:
-
         return {}
 
 
@@ -139,17 +115,11 @@ def decode_jwt_payload(token):
 
 def auth_headers():
 
-    token = st.session_state.get(
-        "id_token"
-    )
+    token = st.session_state.get("id_token")
 
     return {
-
-        "Authorization":
-            f"Bearer {token}",
-
-        "Content-Type":
-            "application/json"
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
     }
 
 
@@ -157,39 +127,26 @@ def auth_headers():
 # API GET
 # ============================================================
 
-def api_get(
-    endpoint,
-    authenticated=True
-):
+def api_get(endpoint, authenticated=True):
 
     try:
 
-        if authenticated:
-
-            headers = auth_headers()
-
-        else:
-
-            headers = {}
+        headers = (
+            auth_headers()
+            if authenticated
+            else {}
+        )
 
         return requests.get(
-
             f"{API_BASE_URL}{endpoint}",
-
             headers=headers,
-
             timeout=15
         )
 
     except requests.exceptions.RequestException as e:
 
-        st.error(
-            "❌ API connection failed."
-        )
-
-        st.code(
-            str(e)
-        )
+        st.error("❌ API connection failed.")
+        st.code(str(e))
 
         return None
 
@@ -206,34 +163,23 @@ def api_post(
 
     try:
 
-        if authenticated:
-
-            headers = auth_headers()
-
-        else:
-
-            headers = {}
+        headers = (
+            auth_headers()
+            if authenticated
+            else {}
+        )
 
         return requests.post(
-
             f"{API_BASE_URL}{endpoint}",
-
             headers=headers,
-
             json=payload or {},
-
             timeout=15
         )
 
     except requests.exceptions.RequestException as e:
 
-        st.error(
-            "❌ API connection failed."
-        )
-
-        st.code(
-            str(e)
-        )
+        st.error("❌ API connection failed.")
+        st.code(str(e))
 
         return None
 
@@ -250,27 +196,63 @@ def api_patch(
     try:
 
         return requests.patch(
-
             f"{API_BASE_URL}{endpoint}",
-
             headers=auth_headers(),
-
             json=payload or {},
-
             timeout=15
         )
 
     except requests.exceptions.RequestException as e:
 
-        st.error(
-            "❌ API connection failed."
-        )
-
-        st.code(
-            str(e)
-        )
+        st.error("❌ API connection failed.")
+        st.code(str(e))
 
         return None
+
+
+# ============================================================
+# GET USER ROLE
+# ============================================================
+
+def get_user_role():
+
+    existing_role = (
+        st.session_state.get(
+            "user_role"
+        )
+    )
+
+    if existing_role:
+        return existing_role
+
+    response = api_get(
+        "/dashboard"
+    )
+
+    if response is not None:
+
+        if response.status_code == 200:
+
+            try:
+
+                data = response.json()
+
+                role = data.get(
+                    "role"
+                )
+
+                if role:
+
+                    st.session_state[
+                        "user_role"
+                    ] = role
+
+                    return role
+
+            except Exception:
+                pass
+
+    return "UNKNOWN"
 
 
 # ============================================================
@@ -285,29 +267,7 @@ def get_admin_reports():
     )
 
     if response is None:
-
         return None
-
-    print(
-        "======================================"
-    )
-
-    print(
-        "ADMIN REPORTS STATUS:",
-        response.status_code
-    )
-
-    print(
-        "ADMIN REPORTS RESPONSE:"
-    )
-
-    print(
-        response.text
-    )
-
-    print(
-        "======================================"
-    )
 
     if response.status_code == 200:
 
@@ -315,7 +275,7 @@ def get_admin_reports():
 
             return response.json()
 
-        except Exception as e:
+        except Exception:
 
             st.error(
                 "❌ Could not parse Admin Reports response."
@@ -325,13 +285,9 @@ def get_admin_reports():
                 response.text
             )
 
-            st.code(
-                str(e)
-            )
-
             return None
 
-    elif response.status_code == 401:
+    if response.status_code == 401:
 
         st.error(
             "🔐 Authentication failed."
@@ -343,7 +299,7 @@ def get_admin_reports():
 
         return None
 
-    elif response.status_code == 403:
+    if response.status_code == 403:
 
         st.error(
             "🚫 ADMIN permission required."
@@ -355,18 +311,16 @@ def get_admin_reports():
 
         return None
 
-    else:
+    st.error(
+        f"❌ Admin Reports API error: "
+        f"{response.status_code}"
+    )
 
-        st.error(
-            f"❌ Admin Reports API error: "
-            f"{response.status_code}"
-        )
+    st.code(
+        response.text
+    )
 
-        st.code(
-            response.text
-        )
-
-        return None
+    return None
 
 
 # ============================================================
@@ -380,7 +334,6 @@ def get_admin_donations():
     )
 
     if response is None:
-
         return []
 
     if response.status_code == 200:
@@ -429,7 +382,6 @@ def get_admin_users():
     )
 
     if response is None:
-
         return []
 
     if response.status_code == 200:
@@ -468,48 +420,146 @@ def get_admin_users():
 
 
 # ============================================================
-# GET USER ROLE
+# AMAZON LOCATION GEOCODING
 # ============================================================
 
-def get_user_role():
+def geocode_location(location):
 
-    existing_role = st.session_state.get(
-        "user_role"
-    )
+    if not LOCATION_API_KEY:
 
-    if existing_role:
+        st.error(
+            "❌ Amazon Location API key is missing."
+        )
 
-        return existing_role
+        return None
 
-    response = api_get(
-        "/dashboard"
-    )
+    if not location:
+        return None
 
-    if response is not None:
+    location = location.strip()
 
-        if response.status_code == 200:
+    if not location:
+        return None
 
-            try:
+    try:
 
-                data = response.json()
+        url = (
+            f"https://places.geo.{LOCATION_REGION}"
+            f".amazonaws.com/v2/geocode"
+        )
 
-                role = data.get(
-                    "role"
-                )
+        params = {
+            "key": LOCATION_API_KEY
+        }
 
-                if role:
+        body = {
+            "QueryText": location,
+            "MaxResults": 5
+        }
 
-                    st.session_state[
-                        "user_role"
-                    ] = role
+        response = requests.post(
+            url,
+            params=params,
+            json=body,
+            timeout=15
+        )
 
-                    return role
+        if response.status_code != 200:
 
-            except Exception:
+            st.error(
+                "❌ Amazon Location request failed."
+            )
 
-                pass
+            st.code(
+                response.text
+            )
 
-    return "UNKNOWN"
+            return None
+
+        data = response.json()
+
+        results = data.get(
+            "ResultItems",
+            []
+        )
+
+        if not results:
+            return None
+
+        result = results[0]
+
+        position = result.get(
+            "Position"
+        )
+
+        if not position:
+            return None
+
+        if len(position) < 2:
+            return None
+
+        longitude = position[0]
+        latitude = position[1]
+
+        address = result.get(
+            "Address",
+            {}
+        )
+
+        label = address.get(
+            "Label"
+        )
+
+        if not label:
+
+            label = result.get(
+                "Title",
+                location
+            )
+
+        return {
+            "latitude": latitude,
+            "longitude": longitude,
+            "label": label,
+            "place_id": result.get(
+                "PlaceId"
+            ),
+            "place_type": result.get(
+                "PlaceType"
+            )
+        }
+
+    except requests.exceptions.Timeout:
+
+        st.error(
+            "⏱️ Amazon Location request timed out."
+        )
+
+        return None
+
+    except requests.exceptions.RequestException as e:
+
+        st.error(
+            "❌ Amazon Location request failed."
+        )
+
+        st.code(
+            str(e)
+        )
+
+        return None
+
+    except Exception as e:
+
+        st.error(
+            "❌ Geocoding error."
+        )
+
+        st.code(
+            str(e)
+        )
+
+        return None
 
 
 # ============================================================
@@ -567,18 +617,14 @@ if not st.session_state["logged_in"]:
                     AuthFlow="USER_PASSWORD_AUTH",
 
                     AuthParameters={
-
-                        "USERNAME":
-                            email,
-
-                        "PASSWORD":
-                            password
+                        "USERNAME": email,
+                        "PASSWORD": password
                     }
                 )
 
-                # ==========================================
+                # ------------------------------------------------
                 # NORMAL LOGIN
-                # ==========================================
+                # ------------------------------------------------
 
                 if "AuthenticationResult" in response:
 
@@ -588,15 +634,11 @@ if not st.session_state["logged_in"]:
 
                     st.session_state[
                         "id_token"
-                    ] = auth[
-                        "IdToken"
-                    ]
+                    ] = auth["IdToken"]
 
                     st.session_state[
                         "access_token"
-                    ] = auth[
-                        "AccessToken"
-                    ]
+                    ] = auth["AccessToken"]
 
                     st.session_state[
                         "refresh_token"
@@ -632,9 +674,9 @@ if not st.session_state["logged_in"]:
 
                     st.rerun()
 
-                # ==========================================
+                # ------------------------------------------------
                 # NEW PASSWORD REQUIRED
-                # ==========================================
+                # ------------------------------------------------
 
                 elif response.get(
                     "ChallengeName"
@@ -679,7 +721,6 @@ if not st.session_state["logged_in"]:
                 st.code(
                     str(e)
                 )
-
 
     # ========================================================
     # NEW PASSWORD
@@ -734,8 +775,7 @@ if not st.session_state["logged_in"]:
                     response = (
                         cognito.respond_to_auth_challenge(
 
-                            ClientId=
-                                COGNITO_CLIENT_ID,
+                            ClientId=COGNITO_CLIENT_ID,
 
                             ChallengeName=
                                 "NEW_PASSWORD_REQUIRED",
@@ -767,15 +807,11 @@ if not st.session_state["logged_in"]:
 
                     st.session_state[
                         "id_token"
-                    ] = auth[
-                        "IdToken"
-                    ]
+                    ] = auth["IdToken"]
 
                     st.session_state[
                         "access_token"
-                    ] = auth[
-                        "AccessToken"
-                    ]
+                    ] = auth["AccessToken"]
 
                     st.session_state[
                         "refresh_token"
@@ -890,9 +926,9 @@ if st.sidebar.button(
 
     for key in default_session_values:
 
-        st.session_state[
-            key
-        ] = default_session_values[key]
+        st.session_state[key] = (
+            default_session_values[key]
+        )
 
     st.rerun()
 
@@ -1029,51 +1065,98 @@ if user_role == "DONOR":
 
     if submit:
 
-        payload = {
+        if not food_type.strip():
 
-            "foodType":
-                food_type,
+            st.error(
+                "❌ Please enter the food type."
+            )
 
-            "quantity":
-                quantity,
+        elif not pickup_location.strip():
 
-            "pickupLocation":
-                pickup_location,
+            st.error(
+                "❌ Please enter the pickup location."
+            )
 
-            "pickupTime":
-                pickup_time,
+        elif not pickup_time.strip():
 
-            "description":
-                description
-        }
+            st.error(
+                "❌ Please enter the pickup time."
+            )
 
-        response = api_post(
-            "/donations",
-            payload
-        )
+        else:
 
-        if response is not None:
+            payload = {
+                "foodType": food_type.strip(),
+                "quantity": int(quantity),
+                "pickupLocation":
+                    pickup_location.strip(),
+                "pickupTime":
+                    pickup_time.strip(),
+                "description":
+                    description.strip()
+            }
 
-            if response.status_code in [
-                200,
-                201
-            ]:
+            response = api_post(
+                "/donations",
+                payload
+            )
 
-                st.success(
-                    "🎉 Donation created successfully!"
-                )
+            if response is not None:
 
-                st.rerun()
+                # =================================================
+                # SUCCESS
+                # =================================================
 
-            else:
+                if response.status_code in [
+                    200,
+                    201
+                ]:
 
-                st.error(
-                    "❌ Failed to create donation."
-                )
+                    st.success(
+                        "🎉 Donation created successfully!"
+                    )
 
-                st.code(
-                    response.text
-                )
+                    st.info(
+                        "Your donation is now available "
+                        "for receivers to claim."
+                    )
+
+                    # Show returned donation ID if available
+                    try:
+
+                        result = response.json()
+
+                        donation_id = (
+                            result.get(
+                                "donationId"
+                            )
+                        )
+
+                        if donation_id:
+
+                            st.write(
+                                f"**Donation ID:** "
+                                f"`{donation_id}`"
+                            )
+
+                    except Exception:
+                        pass
+
+                # =================================================
+                # ERROR
+                # =================================================
+
+                else:
+
+                    st.error(
+                        "❌ Failed to create donation."
+                    )
+
+                    st.code(
+                        f"Status: "
+                        f"{response.status_code}\n\n"
+                        f"{response.text}"
+                    )
 
 
 # ============================================================
@@ -1095,12 +1178,26 @@ if response is not None:
 
     if response.status_code == 200:
 
-        data = response.json()
+        try:
 
-        donations = data.get(
-            "donations",
-            []
-        )
+            data = response.json()
+
+            donations = data.get(
+                "donations",
+                []
+            )
+
+        except Exception:
+
+            donations = []
+
+            st.error(
+                "❌ Could not read donations response."
+            )
+
+            st.code(
+                response.text
+            )
 
         if donations:
 
@@ -1152,6 +1249,15 @@ if response is not None:
                         f"{donation.get('pickupTime', '-')}"
                     )
 
+                    if donation.get(
+                        "description"
+                    ):
+
+                        st.write(
+                            f"**Description:** "
+                            f"{donation.get('description')}"
+                        )
+
                     if user_role == "RECEIVER":
 
                         if st.button(
@@ -1161,7 +1267,8 @@ if response is not None:
                         ):
 
                             claim = api_post(
-                                f"/donations/{donation_id}/claim"
+                                f"/donations/"
+                                f"{donation_id}/claim"
                             )
 
                             if claim is not None:
@@ -1181,7 +1288,9 @@ if response is not None:
                                     )
 
                                     st.code(
-                                        claim.text
+                                        f"Status: "
+                                        f"{claim.status_code}\n\n"
+                                        f"{claim.text}"
                                     )
 
         else:
@@ -1189,6 +1298,18 @@ if response is not None:
             st.info(
                 "No available donations."
             )
+
+    else:
+
+        st.error(
+            "❌ Could not load donations."
+        )
+
+        st.code(
+            f"Status: "
+            f"{response.status_code}\n\n"
+            f"{response.text}"
+        )
 
 
 # ============================================================
@@ -1214,12 +1335,26 @@ if user_role in [
 
         if response.status_code == 200:
 
-            data = response.json()
+            try:
 
-            my_donations = data.get(
-                "donations",
-                []
-            )
+                data = response.json()
+
+                my_donations = data.get(
+                    "donations",
+                    []
+                )
+
+            except Exception:
+
+                my_donations = []
+
+                st.error(
+                    "❌ Could not read My Donations response."
+                )
+
+                st.code(
+                    response.text
+                )
 
             if my_donations:
 
@@ -1257,9 +1392,14 @@ if user_role in [
                             f"{status}"
                         )
 
-                        # ==================================
-                        # PICKED UP
-                        # ==================================
+                        st.write(
+                            f"**Pickup Time:** "
+                            f"{donation.get('pickupTime', '-')}"
+                        )
+
+                        # ----------------------------------------
+                        # RECEIVER: PICKED UP
+                        # ----------------------------------------
 
                         if (
                             user_role == "RECEIVER"
@@ -1300,12 +1440,14 @@ if user_role in [
                                         )
 
                                         st.code(
-                                            result.text
+                                            f"Status: "
+                                            f"{result.status_code}\n\n"
+                                            f"{result.text}"
                                         )
 
-                        # ==================================
-                        # COMPLETED
-                        # ==================================
+                        # ----------------------------------------
+                        # RECEIVER: COMPLETED
+                        # ----------------------------------------
 
                         if (
                             user_role == "RECEIVER"
@@ -1346,7 +1488,9 @@ if user_role in [
                                         )
 
                                         st.code(
-                                            result.text
+                                            f"Status: "
+                                            f"{result.status_code}\n\n"
+                                            f"{result.text}"
                                         )
 
             else:
@@ -1354,6 +1498,17 @@ if user_role in [
                 st.info(
                     "No donations found."
                 )
+
+        else:
+
+            st.error(
+                f"❌ My Donations API error: "
+                f"{response.status_code}"
+            )
+
+            st.code(
+                response.text
+            )
 
 
 # ============================================================
@@ -1378,59 +1533,12 @@ if user_role == "ADMIN":
 
     reports = get_admin_reports()
 
-    # ========================================================
-    # DEBUG RESPONSE
-    # ========================================================
-
-    with st.expander(
-        "🔧 Debug: Admin Reports API Response"
-    ):
-
-        if reports is not None:
-
-            st.json(
-                reports
-            )
-
-        else:
-
-            st.error(
-                "No report data returned."
-            )
-
-    # ========================================================
-    # ADMIN REPORT DATA
-    # ========================================================
-
     if reports:
-
-        # IMPORTANT:
-        #
-        # API returns:
-        #
-        # {
-        #     "summary": {
-        #         "totalDonations": 26,
-        #         "available": 2,
-        #         "claimed": 5,
-        #         ...
-        #     },
-        #
-        #     "statusBreakdown": {...},
-        #
-        #     "foodTypeBreakdown": {...}
-        # }
-        #
-        # Therefore summary MUST be extracted.
 
         summary = reports.get(
             "summary",
             {}
         )
-
-        # ====================================================
-        # SUMMARY VALUES
-        # ====================================================
 
         total_donations = summary.get(
             "totalDonations",
@@ -1493,7 +1601,7 @@ if user_role == "ADMIN":
         )
 
         # ====================================================
-        # MAIN SUMMARY CARDS
+        # MAIN SUMMARY
         # ====================================================
 
         c1, c2, c3, c4 = st.columns(4)
@@ -1527,7 +1635,7 @@ if user_role == "ADMIN":
             )
 
         # ====================================================
-        # STATUS CARDS
+        # STATUS
         # ====================================================
 
         c1, c2, c3, c4 = st.columns(4)
@@ -1561,7 +1669,7 @@ if user_role == "ADMIN":
             )
 
         # ====================================================
-        # ADDITIONAL CARDS
+        # ADDITIONAL
         # ====================================================
 
         c1, c2, c3, c4 = st.columns(4)
@@ -1709,19 +1817,12 @@ if user_role == "ADMIN":
     if admin_donations:
 
         statuses = [
-
             "ALL",
-
             "AVAILABLE",
-
             "CLAIMED",
-
             "PICKED_UP",
-
             "COMPLETED",
-
             "EXPIRED",
-
             "CANCELLED"
         ]
 
@@ -1847,7 +1948,6 @@ if user_role == "ADMIN":
             )
 
             label = (
-
                 f"{donation.get('foodType', '-')}"
                 f" | "
                 f"{donation.get('status', '-')}"
@@ -1859,12 +1959,12 @@ if user_role == "ADMIN":
                 label
             ] = donation
 
-        selected_donation_label = st.selectbox(
-
-            "Select donation",
-
-            list(
-                donation_options.keys()
+        selected_donation_label = (
+            st.selectbox(
+                "Select donation",
+                list(
+                    donation_options.keys()
+                )
             )
         )
 
@@ -1897,9 +1997,7 @@ if user_role == "ADMIN":
         )
 
         new_status = st.selectbox(
-
             "New Status",
-
             [
                 "AVAILABLE",
                 "CLAIMED",
@@ -1951,7 +2049,9 @@ if user_role == "ADMIN":
                         )
 
                         st.code(
-                            result.text
+                            f"Status: "
+                            f"{result.status_code}\n\n"
+                            f"{result.text}"
                         )
 
     # ========================================================
@@ -2018,194 +2118,12 @@ if user_role == "ADMIN":
         )
 
         st.download_button(
-
             "📥 Download Donations CSV",
-
             data=csv,
-
-            file_name=
-                "rescueLink_donations.csv",
-
-            mime=
-                "text/csv",
-
+            file_name="rescueLink_donations.csv",
+            mime="text/csv",
             use_container_width=True
         )
-
-
-# ============================================================
-# AMAZON LOCATION GEOCODING
-# ============================================================
-
-def geocode_location(
-    location
-):
-
-    if not LOCATION_API_KEY:
-
-        st.error(
-            "❌ Amazon Location API key is missing."
-        )
-
-        return None
-
-    if not location:
-
-        return None
-
-    location = location.strip()
-
-    if not location:
-
-        return None
-
-    try:
-
-        url = (
-
-            f"https://places.geo."
-            f"{LOCATION_REGION}"
-            f".amazonaws.com/v2/geocode"
-        )
-
-        params = {
-
-            "key":
-                LOCATION_API_KEY
-        }
-
-        body = {
-
-            "QueryText":
-                location,
-
-            "MaxResults":
-                5
-        }
-
-        response = requests.post(
-
-            url,
-
-            params=params,
-
-            json=body,
-
-            timeout=15
-        )
-
-        print(
-            "Amazon Location status:",
-            response.status_code
-        )
-
-        print(
-            "Amazon Location response:",
-            response.text
-        )
-
-        if response.status_code != 200:
-
-            return None
-
-        data = response.json()
-
-        results = data.get(
-            "ResultItems",
-            []
-        )
-
-        if not results:
-
-            return None
-
-        result = results[0]
-
-        position = result.get(
-            "Position"
-        )
-
-        if not position:
-
-            return None
-
-        if len(position) < 2:
-
-            return None
-
-        longitude = position[0]
-
-        latitude = position[1]
-
-        address = result.get(
-            "Address",
-            {}
-        )
-
-        label = address.get(
-            "Label"
-        )
-
-        if not label:
-
-            label = result.get(
-                "Title",
-                location
-            )
-
-        return {
-
-            "latitude":
-                latitude,
-
-            "longitude":
-                longitude,
-
-            "label":
-                label,
-
-            "place_id":
-                result.get(
-                    "PlaceId"
-                ),
-
-            "place_type":
-                result.get(
-                    "PlaceType"
-                )
-        }
-
-    except requests.exceptions.Timeout:
-
-        st.error(
-            "⏱️ Amazon Location request timed out."
-        )
-
-        return None
-
-    except requests.exceptions.RequestException as e:
-
-        st.error(
-            "❌ Amazon Location request failed."
-        )
-
-        st.code(
-            str(e)
-        )
-
-        return None
-
-    except Exception as e:
-
-        st.error(
-            "❌ Geocoding error."
-        )
-
-        st.code(
-            str(e)
-        )
-
-        return None
 
 
 # ============================================================
@@ -2223,9 +2141,7 @@ st.write(
 )
 
 map_location = st.text_input(
-
     "Pickup Location",
-
     placeholder=(
         "Tirupati Central Market, "
         "Tirupati, Andhra Pradesh, India"
@@ -2283,12 +2199,10 @@ if st.button(
                 )
 
             map_df = pd.DataFrame(
-
                 {
                     "latitude": [
                         result["latitude"]
                     ],
-
                     "longitude": [
                         result["longitude"]
                     ]
@@ -2296,13 +2210,9 @@ if st.button(
             )
 
             st.map(
-
                 map_df,
-
                 latitude="latitude",
-
                 longitude="longitude",
-
                 zoom=13
             )
 
