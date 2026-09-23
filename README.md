@@ -297,6 +297,10 @@ AVAILABLE ───────► CANCELLED
 # 🏗️ Architecture
 ![RescueLink Architecture](assets/architecture.png)
 
+# 📸 Application Screenshots
+
+![RescueLink Application Screenshots](assets/rescuelink-screenshots.png)
+
 ``` text
                          ┌──────────────────┐
                          │      USERS       │
